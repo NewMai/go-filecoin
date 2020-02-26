@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
 
-	"github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/paymentchannel"
+	paymentchannel "github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/paymentchannel"
 	retrievalmarketconnector "github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/retrieval_market_connector"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 )
@@ -49,6 +49,8 @@ type RetrievalMarketClientFakeAPI struct {
 
 	MsgSendCid cid.Cid
 	MsgSendErr error
+
+	WaitErr error
 
 	SendNewVoucherErr error
 	SaveVoucherErr    error
@@ -202,6 +204,7 @@ func (rmFake *RetrievalMarketClientFakeAPI) UnsealSector(_ context.Context, sect
 }
 
 // ---------------  Testing methods
+
 func (rmFake *RetrievalMarketClientFakeAPI) Verify() {
 	assert.Equal(rmFake.t, len(rmFake.ExpectedPmtChans), len(rmFake.ActualPmtChans))
 	assert.Equal(rmFake.t, len(rmFake.ActualVouchers), len(rmFake.ExpectedVouchers))
