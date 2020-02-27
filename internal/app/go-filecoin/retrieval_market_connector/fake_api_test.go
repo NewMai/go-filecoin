@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
 
-	paymentchannel "github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/paymentchannel"
+	"github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/paymentchannel"
 	retrievalmarketconnector "github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/retrieval_market_connector"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 )
@@ -50,8 +50,6 @@ type RetrievalMarketClientFakeAPI struct {
 	MsgSendCid cid.Cid
 	MsgSendErr error
 
-	WaitErr error
-
 	SendNewVoucherErr error
 	SaveVoucherErr    error
 	ExpectedVouchers  map[address.Address]*paymentchannel.VoucherInfo
@@ -66,16 +64,16 @@ type RetrievalMarketClientFakeAPI struct {
 // interface methods for a RetrievalMarketClient.
 func NewRetrievalMarketClientFakeAPI(t *testing.T, bal abi.TokenAmount) *RetrievalMarketClientFakeAPI {
 	return &RetrievalMarketClientFakeAPI{
-		t:                 t,
-		Balance:           bal,
-		WorkerAddr:        requireMakeTestFcAddr(t),
-		Nonce:             rand.Uint64(),
-		ExpectedPmtChans:  make(map[address.Address]*paymentchannel.ChannelInfo),
-		ActualPmtChans:    make(map[address.Address]bool),
-		ExpectedVouchers:  make(map[address.Address]*paymentchannel.VoucherInfo),
-		ActualVouchers:    make(map[address.Address]bool),
+		t:                t,
+		Balance:          bal,
+		WorkerAddr:       requireMakeTestFcAddr(t),
+		Nonce:            rand.Uint64(),
+		ExpectedPmtChans: make(map[address.Address]*paymentchannel.ChannelInfo),
+		ActualPmtChans:   make(map[address.Address]bool),
+		ExpectedVouchers: make(map[address.Address]*paymentchannel.VoucherInfo),
+		ActualVouchers:   make(map[address.Address]bool),
 		ExpectedSectorIDs: make(map[uint64]string),
-		ActualSectorIDs:   make(map[uint64]bool),
+		ActualSectorIDs: make(map[uint64]bool),
 	}
 }
 
@@ -204,7 +202,6 @@ func (rmFake *RetrievalMarketClientFakeAPI) UnsealSector(_ context.Context, sect
 }
 
 // ---------------  Testing methods
-
 func (rmFake *RetrievalMarketClientFakeAPI) Verify() {
 	assert.Equal(rmFake.t, len(rmFake.ExpectedPmtChans), len(rmFake.ActualPmtChans))
 	assert.Equal(rmFake.t, len(rmFake.ActualVouchers), len(rmFake.ExpectedVouchers))
