@@ -64,16 +64,16 @@ type RetrievalMarketClientFakeAPI struct {
 // interface methods for a RetrievalMarketClient.
 func NewRetrievalMarketClientFakeAPI(t *testing.T, bal abi.TokenAmount) *RetrievalMarketClientFakeAPI {
 	return &RetrievalMarketClientFakeAPI{
-		t:                t,
-		Balance:          bal,
-		WorkerAddr:       requireMakeTestFcAddr(t),
-		Nonce:            rand.Uint64(),
-		ExpectedPmtChans: make(map[address.Address]*paymentchannel.ChannelInfo),
-		ActualPmtChans:   make(map[address.Address]bool),
-		ExpectedVouchers: make(map[address.Address]*paymentchannel.VoucherInfo),
-		ActualVouchers:   make(map[address.Address]bool),
+		t:                 t,
+		Balance:           bal,
+		WorkerAddr:        requireMakeTestFcAddr(t),
+		Nonce:             rand.Uint64(),
+		ExpectedPmtChans:  make(map[address.Address]*paymentchannel.ChannelInfo),
+		ActualPmtChans:    make(map[address.Address]bool),
+		ExpectedVouchers:  make(map[address.Address]*paymentchannel.VoucherInfo),
+		ActualVouchers:    make(map[address.Address]bool),
 		ExpectedSectorIDs: make(map[uint64]string),
-		ActualSectorIDs: make(map[uint64]bool),
+		ActualSectorIDs:   make(map[uint64]bool),
 	}
 }
 
