@@ -157,20 +157,20 @@ func (rmFake *RetrievalMarketClientFakeAPI) SignBytes(_ []byte, _ address.Addres
 }
 
 // Send mocks sending a message on chain
-func (rmFake *RetrievalMarketClientFakeAPI) Send(ctx context.Context,
-	from, to address.Address,
-	value types.AttoFIL,
-	gasPrice types.AttoFIL, gasLimit types.GasUnits,
-	bcast bool,
-	method abi.MethodNum,
-	params interface{}) (out cid.Cid, pubErrCh chan error, err error) {
-	rmFake.Nonce++
-
-	if err != nil {
-		return cid.Undef, nil, err
-	}
-	return rmFake.MsgSendCid, nil, rmFake.MsgSendErr
-}
+//func (rmFake *RetrievalMarketClientFakeAPI) Send(ctx context.Context,
+//	from, to address.Address,
+//	value types.AttoFIL,
+//	gasPrice types.AttoFIL, gasLimit types.GasUnits,
+//	bcast bool,
+//	method abi.MethodNum,
+//	params interface{}) (out cid.Cid, pubErrCh chan error, err error) {
+//	rmFake.Nonce++
+//
+//	if err != nil {
+//		return cid.Undef, nil, err
+//	}
+//	return rmFake.MsgSendCid, nil, rmFake.MsgSendErr
+//}
 
 // SaveVoucher mocks saving a voucher to the payment channel store.
 func (rmFake *RetrievalMarketClientFakeAPI) SaveVoucher(paychAddr address.Address, voucher *paych.SignedVoucher, proof []byte, expectedAmt abi.TokenAmount) (abi.TokenAmount, error) {

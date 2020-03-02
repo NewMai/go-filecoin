@@ -15,6 +15,7 @@ import (
 // capabilities.
 type RetrievalProtocolSubmodule struct {
 	pc *retmkt.RetrievalProviderConnector
+	rc *retmkt.RetrievalClientConnector
 }
 
 // NewRetrievalProtocolSubmodule creates a new retrieval protocol submodule.
@@ -32,12 +33,15 @@ func NewRetrievalProtocolSubmodule(
 	retrievalDealPieceStore := piecestore.NewPieceStore(ds)
 
 	netwk := network.NewFromLibp2pHost(host)
-	pnode := retmkt.NewRetrievalProviderConnector(netwk, pieceManager, bs, pchMgrAPI)
+	pcon := retmkt.NewRetrievalProviderConnector(netwk, pieceManager, bs, pchMgrAPI)
+	ccon := retmkt.NewRetrievalClientConnector(bs, cr, signer, pchMgrAPI)
 
 	// TODO: use latest go-fil-markets with persisted deal store
-	marketProvider := impl.NewProvider(providerAddr, pnode, netwk, retrievalDealPieceStore, bs)
+	marketProvider := impl.NewProvider(providerAddr, pcon, netwk, retrievalDealPieceStore, bs)
+	pcon.SetProvider(marketProvider)
 
-	pnode.SetProvider(marketProvider)
+	marketClient := impl.NewClient(netwk, bs, ccon, nil)
+	ccon.SetRetrievalClient(marketClient)
 
-	return &RetrievalProtocolSubmodule{pnode}, nil
+	return &RetrievalProtocolSubmodule{pcon, ccon}, nil
 }
