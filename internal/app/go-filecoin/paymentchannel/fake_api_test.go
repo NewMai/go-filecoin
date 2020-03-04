@@ -1,20 +1,23 @@
 package paymentchannel
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-fil-markets/shared_testutil"
 	"github.com/filecoin-project/specs-actors/actors/abi"
+	"github.com/filecoin-project/specs-actors/actors/builtin"
 	initActor "github.com/filecoin-project/specs-actors/actors/builtin/init"
+	specsruntime "github.com/filecoin-project/specs-actors/actors/runtime"
 	"github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-filecoin/internal/pkg/block"
+	"github.com/filecoin-project/go-filecoin/internal/pkg/crypto"
+	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm"
 )
@@ -35,6 +38,7 @@ type FakePaymentChannelAPI struct {
 type MsgReceipts struct {
 	Block  *block.Block
 	Msg    *types.SignedMessage
+	DecodedParams interface{}
 	MsgCid cid.Cid
 	Rcpt   *vm.MessageReceipt
 }
@@ -56,7 +60,7 @@ func (f *FakePaymentChannelAPI) Wait(_ context.Context, msgCid cid.Cid, cb func(
 		return f.MsgWaitErr
 	}
 	f.ActualWaitCid = msgCid
-	return cb(f.ActualMsg.Block, f.ExpectedMsg.Msg, f.ActualMsg.Rcpt)
+	return cb(f.ExpectedMsg.Block, f.ExpectedMsg.Msg, f.ExpectedMsg.Rcpt)
 }
 
 // Send mocks sending a message on chain
@@ -76,44 +80,64 @@ func (f *FakePaymentChannelAPI) Send(ctx context.Context,
 		f.t.Fatal("no message or no cid registered")
 	}
 
-	unsigned := types.NewUnsignedMessage(from, to, 1, value, method, []byte{})
-	unsigned.GasPrice = gasPrice
-	unsigned.GasLimit = gasLimit
-	f.ActualMsg = f.ExpectedMsg
-	require.Equal(f.t, *unsigned, f.ExpectedMsg.Msg.Message)
+	f.t.Logf("Send params: \n%v", params)
 
-	f.ActualMsg.Msg.Message = *unsigned
+	expMessage := f.ExpectedMsg.Msg.Message
+	require.Equal(f.t, f.ExpectedMsg.DecodedParams, params)
+	require.Equal(f.t,expMessage.GasLimit, gasLimit)
+	require.Equal(f.t,expMessage.GasPrice, gasPrice)
+	require.Equal(f.t,expMessage.From, from)
+	require.Equal(f.t,expMessage.To, to)
+	require.Equal(f.t,expMessage.Value, value)
+	require.Equal(f.t,expMessage.Method, method)
+	require.True(f.t, bcast)
 	return f.ExpectedMsgCid, nil, nil
 }
 
 // testing methods
 
-// StubMessage sets up a message response, with desired exit code and block height
-func (f *FakePaymentChannelAPI) StubMessage(from, to, idAddr, uniqueAddr address.Address, method abi.MethodNum, code exitcode.ExitCode, height uint64) {
+// StubCreatePaychActorMessage sets up a message response, with desired exit code and block height
+func (f *FakePaymentChannelAPI) StubCreatePaychActorMessage(clientAccountAddr, minerAccountAddr, paychIDAddr, paychUniqueAddr address.Address, method abi.MethodNum, code exitcode.ExitCode, height uint64) {
+
 	newcid := shared_testutil.GenerateCids(1)[0]
-	msg := types.NewUnsignedMessage(from, to, 1, types.ZeroAttoFIL, method, []byte{})
+
+	msg := types.NewUnsignedMessage(clientAccountAddr, builtin.InitActorAddr, 1, types.ZeroAttoFIL, method, []byte{})
 	msg.GasPrice = defaultGasPrice
 	msg.GasLimit = defaultGasLimit
+
+	params, err := PaychActorCtorExecParamsFor(clientAccountAddr, minerAccountAddr)
+	if err != nil {
+		f.t.Fatal("could not construct send params")
+	}
+	f.t.Logf("Stubbed Message params: \n%v", params)
+	msg.Params = f.requireEncode(&params)
+
 	f.ExpectedMsgCid = newcid
 
-	res := initActor.ExecReturn{IDAddress: idAddr, RobustAddress: uniqueAddr}
-	var buf bytes.Buffer
-	if err := res.MarshalCBOR(&buf); err != nil {
-		f.t.Fatal(err.Error())
-	}
+	retVal := initActor.ExecReturn{IDAddress: paychIDAddr, RobustAddress: paychUniqueAddr}
 
+	emptySig := crypto.Signature{ Type: crypto.SigTypeBLS,  Data: []byte{'0'} }
 	f.ExpectedMsg = MsgReceipts{
 		Block:  &block.Block{Height: abi.ChainEpoch(height)},
-		Msg:    &types.SignedMessage{Message: *msg},
+		Msg:    &types.SignedMessage{Message: *msg, Signature: emptySig},
 		MsgCid: newcid,
-		Rcpt:   &vm.MessageReceipt{ExitCode: code, ReturnValue: buf.Bytes()},
+		Rcpt:   &vm.MessageReceipt{ExitCode: code, ReturnValue: f.requireEncode(&retVal)},
+		DecodedParams: params,
 	}
 }
 
 // Verify compares expected and actual results
 func (f *FakePaymentChannelAPI) Verify() {
 	assert.True(f.t, f.ExpectedMsgCid.Equals(f.ActualWaitCid))
-	assert.True(f.t, f.ExpectedMsg.Msg.Equals(f.ActualMsg.Msg))
+}
+
+
+func (f *FakePaymentChannelAPI) requireEncode(params specsruntime.CBORMarshaler) []byte {
+	encodedParams, err := encoding.Encode(params)
+	if err != nil {
+		f.t.Fatal(err.Error())
+	}
+	return encodedParams
 }
 
 var _ MsgSender = &FakePaymentChannelAPI{}

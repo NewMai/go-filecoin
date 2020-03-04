@@ -1,7 +1,6 @@
 package paymentchannel
 
 import (
-	"bytes"
 	"context"
 
 	"github.com/filecoin-project/go-address"
@@ -16,6 +15,7 @@ import (
 	xerrors "github.com/pkg/errors"
 
 	"github.com/filecoin-project/go-filecoin/internal/pkg/block"
+	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm"
 )
@@ -78,7 +78,7 @@ func (pm *Manager) GetPaymentChannelInfo(paychAddr address.Address) (*ChannelInf
 // CreatePaymentChannel will send the message to the InitActor to create a paych.Actor.
 // If successful, a new payment channel entry will be persisted to the paymentChannels via a message wait handler
 func (pm *Manager) CreatePaymentChannel(clientAddress, minerAddress address.Address) error {
-	execParams, err := paychActorCtorExecParamsFor(clientAddress, minerAddress)
+	execParams, err := PaychActorCtorExecParamsFor(clientAddress, minerAddress)
 	if err != nil {
 		return err
 	}
@@ -128,8 +128,7 @@ func (pm *Manager) handleUpdatePaymentChannelResult(b *block.Block, sm *types.Si
 
 func (pm *Manager) handleCreatePaymentChannelResult(b *block.Block, sm *types.SignedMessage, mr *vm.MessageReceipt) error {
 	var res initActor.ExecReturn
-	buf := bytes.NewBuffer(mr.ReturnValue)
-	if err := res.UnmarshalCBOR(buf); err != nil {
+	if err := encoding.Decode(mr.ReturnValue, &res); err != nil {
 		return err
 	}
 	has, err := pm.paymentChannels.Has(res.RobustAddress)
@@ -140,17 +139,22 @@ func (pm *Manager) handleCreatePaymentChannelResult(b *block.Block, sm *types.Si
 		return xerrors.Errorf("channel exists %s", res.RobustAddress)
 	}
 
-	var msgParams paychActor.ConstructorParams
-	buf = bytes.NewBuffer(sm.Message.Params)
-	if err := res.UnmarshalCBOR(buf); err != nil {
+	var msgParams initActor.ExecParams
+	if err := encoding.Decode(sm.Message.Params, &msgParams); err != nil {
+		return err
+	}
+
+
+	var ctorParams paychActor.ConstructorParams
+	if err = encoding.Decode(msgParams.ConstructorParams, &ctorParams); err != nil {
 		return err
 	}
 
 	chinfo := ChannelInfo{
 		IDAddr: res.IDAddress,
 		State: &paychActor.State{
-			From:            msgParams.From,
-			To:              msgParams.To,
+			From:            ctorParams.From,
+			To:              ctorParams.To,
 			ToSend:          abi.NewTokenAmount(0),
 			SettlingAt:      0,
 			MinSettleHeight: b.Height + 1,
@@ -168,33 +172,31 @@ func updatePaymentChannelStateParamsFor(voucher *paychActor.SignedVoucher) (init
 		//Secret: nil,
 		//Proof:  nil,
 	}
-	var marshaled bytes.Buffer
-	err := ucp.MarshalCBOR(&marshaled)
+	encoded, err := encoding.Encode(ucp)
 	if err != nil {
 		return initActor.ExecParams{}, err
 	}
 
 	p := initActor.ExecParams{
 		CodeCID:           builtin.PaymentChannelActorCodeID,
-		ConstructorParams: marshaled.Bytes(),
+		ConstructorParams: encoded,
 	}
 	return p, nil
 }
 
-func paychActorCtorExecParamsFor(client, miner address.Address) (initActor.ExecParams, error) {
+func PaychActorCtorExecParamsFor(client, miner address.Address) (initActor.ExecParams, error) {
 	ctorParams := paychActor.ConstructorParams{
 		From: client,
 		To:   miner,
 	}
-	var marshaled bytes.Buffer
-	err := ctorParams.MarshalCBOR(&marshaled)
+	marshaled, err := encoding.Encode(ctorParams)
 	if err != nil {
 		return initActor.ExecParams{}, err
 	}
 
 	p := initActor.ExecParams{
 		CodeCID:           builtin.PaymentChannelActorCodeID,
-		ConstructorParams: marshaled.Bytes(),
+		ConstructorParams: marshaled,
 	}
 	return p, nil
 }

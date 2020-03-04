@@ -25,7 +25,7 @@ func TestManager_CreatePaymentChannel(t *testing.T) {
 	paychUniqueAddr := spect.NewActorAddr(t, "paych")
 	blockHeight := uint64(1234)
 
-	testAPI.StubMessage(clientAddr, builtin.InitActorAddr, paychIDAddr, paychUniqueAddr, builtin.MethodsInit.Exec, exitcode.Ok, blockHeight)
+	testAPI.StubCreatePaychActorMessage(clientAddr, minerAddr, paychIDAddr, paychUniqueAddr, builtin.MethodsInit.Exec, exitcode.Ok, blockHeight)
 
 	err := m.CreatePaymentChannel(clientAddr, minerAddr)
 	require.NoError(t, err)
@@ -49,7 +49,16 @@ func TestManager_AllocateLane(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, uint64(0), lane)
 	})
-	t.Run("updates a lane", func(t *testing.T) {})
+
 	t.Run("errors if update lane doesn't exist", func(t *testing.T) {})
 	t.Run("errors if create lane fails", func(t *testing.T) {})
+}
+
+func TestManager_SaveVoucher(t *testing.T) {
+	//t.Run("updates a lane", func(t *testing.T) {
+	//	lane, err := m.AllocateLane(paychIDAddr)
+	//	require.NoError(t, err)
+	//	assert.Equal(t, uint64(0), lane)
+	//
+	//})
 }

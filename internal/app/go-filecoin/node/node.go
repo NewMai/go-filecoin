@@ -494,28 +494,6 @@ func (node *Node) setupRetrievalMining(ctx context.Context) error {
 	return nil
 }
 
-func (node *Node) setupRetrievalMining(ctx context.Context) error {
-	providerAddr, err := node.MiningAddress()
-	if err != nil {
-		return errors.Wrap(err, "failed to get mining address")
-	}
-	rp, err := submodule.NewRetrievalProtocolSubmodule(
-		node.Blockstore.Blockstore,
-		node.Repo.Datastore(),
-		node.chain.State,
-		node.Host(),
-		providerAddr,
-		node.Wallet.Wallet,
-		nil, // TODO: payment channel manager API, in follow-up
-		node.PieceManager(),
-	)
-	if err != nil {
-		return errors.Wrap(err, "failed to build node.RetrievalProtocol")
-	}
-	node.RetrievalProtocol = rp
-	return nil
-}
-
 func (node *Node) doMiningPause(ctx context.Context) {
 	// doMiningPause receives state transition signals from the syncer
 	// dispatcher allowing syncing to make progress.
