@@ -72,6 +72,25 @@ func (r *RetrievalProviderConnector) UnsealSector(ctx context.Context, sectorID 
 	return newWrappedReadCloser(unsealedSector, offset, length)
 }
 
+// SavePaymentVoucher stores the provided payment voucher with the payment channel actor
+func (r *RetrievalProviderConnector) SavePaymentVoucher(_ context.Context, paymentChannel address.Address, voucher *paych.SignedVoucher, proof []byte, expected abi.TokenAmount) (abi.TokenAmount, error) {
+
+	exists, err := r.paychMgr.ChannelExists(paymentChannel)
+	if err != nil {
+		return abi.NewTokenAmount(0), err
+	}
+	if !exists {
+		return abi.NewTokenAmount(0), xerrors.Errorf("channel does not exist: %s", paymentChannel.String())
+	}
+
+	actual, err := r.paychMgr.SaveVoucher(paymentChannel, voucher, proof, expected)
+	if err != nil {
+		return abi.NewTokenAmount(0), err
+	}
+
+	return actual, nil
+}
+
 type limitedOffsetReadCloser struct {
 	originalRC    io.ReadCloser
 	limitedReader io.Reader
@@ -95,21 +114,4 @@ func (wrc limitedOffsetReadCloser) Read(p []byte) (int, error) {
 }
 func (wrc limitedOffsetReadCloser) Close() error {
 	return wrc.originalRC.Close()
-}
-
-// SavePaymentVoucher stores the provided payment voucher with the payment channel actor
-func (r *RetrievalProviderConnector) SavePaymentVoucher(_ context.Context, paymentChannel address.Address, voucher *paych.SignedVoucher, proof []byte, expected abi.TokenAmount) (abi.TokenAmount, error) {
-
-	// check to see if the channel exists first
-	_, err := r.paychMgr.GetPaymentChannelInfo(paymentChannel)
-	if err != nil {
-		return abi.NewTokenAmount(0), err
-	}
-
-	actual, err := r.paychMgr.SaveVoucher(paymentChannel, voucher, proof, expected)
-	if err != nil {
-		return abi.NewTokenAmount(0), err
-	}
-
-	return actual, nil
 }

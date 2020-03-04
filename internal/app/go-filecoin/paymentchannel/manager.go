@@ -20,9 +20,12 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm"
 )
 
-var defaultMessageValue = types.NewAttoFILFromFIL(0)
-var defaultGasPrice = types.NewAttoFILFromFIL(1)
-var defaultGasLimit = types.GasUnits(300)
+// the default number of blocks after which the payment channel can be settled
+var defaultSettleIncrement = abi.ChainEpoch(1)
+
+var defaultMessageValue = types.NewAttoFILFromFIL(0) // default value for messages sent from this manager
+var defaultGasPrice = types.NewAttoFILFromFIL(1)     // default gas price for messages sent from this manager
+var defaultGasLimit = types.GasUnits(300)            // default gas limit for messages sent from this manager
 
 // Manager manages payment channel actor and the data paymentChannels operations.
 type Manager struct {
@@ -72,7 +75,15 @@ func (pm *Manager) GetPaymentChannelByAccounts(payer, payee address.Address) (ad
 
 // GetPaymentChannelInfo retrieves channel info from the paymentChannels
 func (pm *Manager) GetPaymentChannelInfo(paychAddr address.Address) (*ChannelInfo, error) {
-	return nil, nil
+	ss := pm.paymentChannels.Get(paychAddr)
+	if ss == nil {
+		return nil, nil
+	}
+	var chinfo ChannelInfo
+	if err := ss.Get(&chinfo); err != nil {
+		return nil, err
+	}
+	return &chinfo, nil
 }
 
 // CreatePaymentChannel will send the message to the InitActor to create a paych.Actor.
@@ -103,7 +114,8 @@ func (pm *Manager) CreatePaymentChannel(clientAddress, minerAddress address.Addr
 	return nil
 }
 
-// CreateVoucher creates a signed voucher for the paymentActor returns the result
+// CreateVoucher creates a signed voucher for the paymentActor, saves to store and returns any error
+// Called by the retrieval market client
 func (pm *Manager) CreateVoucher(paychAddr address.Address, voucher *paychActor.SignedVoucher) error {
 
 	//chinfo, err := pm.paymentChannels.getChannelInfo(paychAddr)
@@ -114,18 +126,20 @@ func (pm *Manager) CreateVoucher(paychAddr address.Address, voucher *paychActor.
 	return nil
 }
 
-// SaveVoucher stores the voucher in the payment channel store
+// SaveVoucher saves voucher to the store
+// called by the retrieval market provider, when it has received a new voucher from the client
 func (pm *Manager) SaveVoucher(paychAddr address.Address, voucher *paychActor.SignedVoucher, proof []byte, expected abi.TokenAmount) (actual abi.TokenAmount, err error) {
-	panic("implement SaveVoucher")
+
 	return abi.NewTokenAmount(0), nil
 }
 
-func (pm *Manager) handleUpdatePaymentChannelResult(b *block.Block, sm *types.SignedMessage, mr *vm.MessageReceipt) error {
-	// save results in paymentChannels
-	panic("implement handleUpdatePaymentChannelResult")
-	return nil
+// ChannelExists returns whether paychAddr has a store entry, + error
+func (pm *Manager) ChannelExists(paychAddr address.Address) (bool, error) {
+	return pm.paymentChannels.Has(paychAddr)
 }
 
+// handleCreatePaymentChannelResult responds to the result of sending a create payment channel message to
+// initActor.
 func (pm *Manager) handleCreatePaymentChannelResult(b *block.Block, sm *types.SignedMessage, mr *vm.MessageReceipt) error {
 	var res initActor.ExecReturn
 	if err := encoding.Decode(mr.ReturnValue, &res); err != nil {
@@ -144,8 +158,7 @@ func (pm *Manager) handleCreatePaymentChannelResult(b *block.Block, sm *types.Si
 		return err
 	}
 
-
-	var ctorParams paychActor.ConstructorParams
+	var ctorParams *paychActor.ConstructorParams
 	if err = encoding.Decode(msgParams.ConstructorParams, &ctorParams); err != nil {
 		return err
 	}
@@ -157,33 +170,16 @@ func (pm *Manager) handleCreatePaymentChannelResult(b *block.Block, sm *types.Si
 			To:              ctorParams.To,
 			ToSend:          abi.NewTokenAmount(0),
 			SettlingAt:      0,
-			MinSettleHeight: b.Height + 1,
+			MinSettleHeight: b.Height + defaultSettleIncrement,
 			LaneStates:      nil,
 		},
 		Vouchers: nil,
 	}
-	return pm.paymentChannels.Begin(res.RobustAddress, chinfo)
+	return pm.paymentChannels.Begin(res.RobustAddress, &chinfo)
 }
 
-func updatePaymentChannelStateParamsFor(voucher *paychActor.SignedVoucher) (initActor.ExecParams, error) {
-	ucp := paychActor.UpdateChannelStateParams{
-		Sv: paychActor.SignedVoucher{},
-		// TODO secret, proof for UpdatePaymentChanneStateParams
-		//Secret: nil,
-		//Proof:  nil,
-	}
-	encoded, err := encoding.Encode(ucp)
-	if err != nil {
-		return initActor.ExecParams{}, err
-	}
-
-	p := initActor.ExecParams{
-		CodeCID:           builtin.PaymentChannelActorCodeID,
-		ConstructorParams: encoded,
-	}
-	return p, nil
-}
-
+// PaychActorCtorExecParamsFor constructs parameters to send a message to InitActor
+// To construct a paychActor
 func PaychActorCtorExecParamsFor(client, miner address.Address) (initActor.ExecParams, error) {
 	ctorParams := paychActor.ConstructorParams{
 		From: client,

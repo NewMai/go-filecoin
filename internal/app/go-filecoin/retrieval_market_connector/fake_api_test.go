@@ -60,6 +60,10 @@ type RetrievalMarketClientFakeAPI struct {
 	UnsealErr         error
 }
 
+func (rmFake *RetrievalMarketClientFakeAPI) ChannelExists(_ address.Address) (bool, error) {
+	return true, nil
+}
+
 // NewRetrievalMarketClientFakeAPI creates an instance of a test API that satisfies all needed
 // interface methods for a RetrievalMarketClient.
 func NewRetrievalMarketClientFakeAPI(t *testing.T, bal abi.TokenAmount) *RetrievalMarketClientFakeAPI {
@@ -110,7 +114,7 @@ func (rmFake *RetrievalMarketClientFakeAPI) CreatePaymentChannel(clientAddress, 
 	return nil
 }
 
-func (rmFake *RetrievalMarketClientFakeAPI) CreateVoucher(paychAddr address.Address, voucher *paych.SignedVoucher) error {
+func (rmFake *RetrievalMarketClientFakeAPI) CreateVoucher(_ address.Address, _ *paych.SignedVoucher) error {
 	return nil
 }
 
@@ -173,7 +177,7 @@ func (rmFake *RetrievalMarketClientFakeAPI) SignBytes(_ []byte, _ address.Addres
 //}
 
 // SaveVoucher mocks saving a voucher to the payment channel store.
-func (rmFake *RetrievalMarketClientFakeAPI) SaveVoucher(paychAddr address.Address, voucher *paych.SignedVoucher, proof []byte, expectedAmt abi.TokenAmount) (abi.TokenAmount, error) {
+func (rmFake *RetrievalMarketClientFakeAPI) SaveVoucher(paychAddr address.Address, _ *paych.SignedVoucher, _ []byte, expectedAmt abi.TokenAmount) (abi.TokenAmount, error) {
 	_, ok := rmFake.ExpectedVouchers[paychAddr]
 	if !ok {
 		rmFake.t.Fatalf("missing voucher for %s", paychAddr.String())

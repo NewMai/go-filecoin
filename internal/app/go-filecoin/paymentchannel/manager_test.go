@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
+	"github.com/filecoin-project/specs-actors/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	spect "github.com/filecoin-project/specs-actors/support/testing"
 	"github.com/ipfs/go-datastore"
@@ -34,14 +36,26 @@ func TestManager_CreatePaymentChannel(t *testing.T) {
 	chinfo, err := m.GetPaymentChannelInfo(paychUniqueAddr)
 	require.NoError(t, err)
 	require.NotNil(t, chinfo)
-	assert.Equal(t, clientAddr, chinfo.State.From)
+
+	expectedChinfo := ChannelInfo{
+		State: &paych.State{
+			From:            clientAddr,
+			To:              minerAddr,
+			ToSend:          abi.NewTokenAmount(0),
+			MinSettleHeight: abi.ChainEpoch(blockHeight + 1),
+		},
+		IDAddr: paychIDAddr,
+	}
+	assert.Equal(t, expectedChinfo, *chinfo)
+
 }
+
 func TestManager_AllocateLane(t *testing.T) {
 	ds := datastore.NewMapDatastore()
 	ctx := context.Background()
-	testApi := NewFakePaymentChannelAPI(ctx, t)
+	testAPI := NewFakePaymentChannelAPI(ctx, t)
 
-	m := NewManager(context.Background(), ds, testApi, testApi)
+	m := NewManager(context.Background(), ds, testAPI, testAPI)
 	paychIDAddr := spect.NewIDAddr(t, 999)
 
 	t.Run("saves a new lane", func(t *testing.T) {
