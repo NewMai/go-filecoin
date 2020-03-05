@@ -72,17 +72,8 @@ func (r *RetrievalProviderConnector) UnsealSector(ctx context.Context, sectorID 
 	return newWrappedReadCloser(unsealedSector, offset, length)
 }
 
-// SavePaymentVoucher stores the provided payment voucher with the payment channel actor
+// SavePaymentVoucher stores the provided payment voucher in the local store
 func (r *RetrievalProviderConnector) SavePaymentVoucher(_ context.Context, paymentChannel address.Address, voucher *paych.SignedVoucher, proof []byte, expected abi.TokenAmount) (abi.TokenAmount, error) {
-
-	exists, err := r.paychMgr.ChannelExists(paymentChannel)
-	if err != nil {
-		return abi.NewTokenAmount(0), err
-	}
-	if !exists {
-		return abi.NewTokenAmount(0), xerrors.Errorf("channel does not exist: %s", paymentChannel.String())
-	}
-
 	actual, err := r.paychMgr.SaveVoucher(paymentChannel, voucher, proof, expected)
 	if err != nil {
 		return abi.NewTokenAmount(0), err

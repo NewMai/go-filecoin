@@ -11,9 +11,9 @@ import (
 
 // ChannelInfo is the primary payment channel record
 type ChannelInfo struct {
-	IDAddr   address.Address // internal ID address for payment channel actor
-	State    *paych.State
-	Vouchers []*VoucherInfo // All vouchers submitted for this channel
+	IDAddr, From, To address.Address // internal ID address for payment channel actor
+	LastLane         uint64
+	Vouchers         []*VoucherInfo // All vouchers submitted for this channel
 }
 
 // VoucherInfo is a record of a voucher submitted for a payment channel

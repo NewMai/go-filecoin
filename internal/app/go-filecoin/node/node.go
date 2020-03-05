@@ -477,6 +477,14 @@ func (node *Node) setupRetrievalMining(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get mining address")
 	}
+
+	//waiter := msg.NewWaiter(
+	//	node.chain.ChainReader,
+	//	node.chain.MessageStore,
+	//	node.Blockstore.Blockstore,
+	//	node.Blockstore.CborStore)
+	//paychMgr := paymentchannel.NewManager(ctx, node.Repo.Datastore(), waiter, node.Messaging.Outbox)
+
 	rp, err := submodule.NewRetrievalProtocolSubmodule(
 		node.Blockstore.Blockstore,
 		node.Repo.Datastore(),
@@ -485,6 +493,7 @@ func (node *Node) setupRetrievalMining(ctx context.Context) error {
 		providerAddr,
 		node.Wallet.Wallet,
 		nil, // TODO: payment channel manager API, in follow-up
+		//paychMgr,
 		node.PieceManager(),
 	)
 	if err != nil {
