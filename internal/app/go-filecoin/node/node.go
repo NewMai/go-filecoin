@@ -483,6 +483,7 @@ func (node *Node) setupRetrievalMining(ctx context.Context) error {
 	//	node.chain.MessageStore,
 	//	node.Blockstore.Blockstore,
 	//	node.Blockstore.CborStore)
+	//viewer := state.NewViewer(node.CborStore())
 	//paychMgr := paymentchannel.NewManager(ctx, node.Repo.Datastore(), waiter, node.Messaging.Outbox)
 
 	rp, err := submodule.NewRetrievalProtocolSubmodule(
